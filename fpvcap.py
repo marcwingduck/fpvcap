@@ -23,26 +23,26 @@ __version__ = "1.0"
 
 import cv2
 import time
+import argparse
 
-# capture, use 1 if device has a webcam
-cap = cv2.VideoCapture(0)
+parser = argparse.ArgumentParser(description='Basic video capture application.')
+parser.add_argument('-i', '--index', help='Capture device index.', nargs='?', const=1, type=int, default=0)
+args = parser.parse_args()
 
-# grab a frame to get the capture device's image size
-while True:
-    ret, frame = cap.read()
-    if ret:
-        cv2.imshow("fpv", frame)
-        break
-    cv2.waitKey(10)
-h, w = frame.shape[:2]
+# change index to device
+cap = cv2.VideoCapture(args.index)
 
-# get fps prop (todo hard-code fps if this is not working with our setup)
+if not cap.isOpened():
+    exit(0)
+
+# get camera props
+w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 fps = cap.get(cv2.CAP_PROP_FPS)
-print h, w, fps
 
 # create video writer
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
-writer = cv2.VideoWriter('fpv.avi', fourcc, fps, (w, h))
+writer = None
 
 record = False
 
@@ -50,10 +50,8 @@ record = False
 while True:
     ret, frame = cap.read()
     if ret:
-        if record:  # disable ui to get full fps
-            writer.write(frame)
-        else:  # display frame
-            cv2.imshow("fpv", frame)
+        # disable stream to get full fps
+        writer.write(frame) if record else cv2.imshow("fpv", frame)
 
     c = cv2.waitKey(1) & 0xFF
     if c == ord('q'):  # quit application
@@ -61,9 +59,11 @@ while True:
     elif c == ord('r'):  # toggle recording
         record = not record
         if record:
-            writer.release()  # release former instance
+            if writer:
+                writer.release()  # release former instance
             writer = cv2.VideoWriter('fpv{}.avi'.format(time.strftime("%Y%m%d%H%M%S")), fourcc, fps, (w, h))
 
 cap.release()
-writer.release()
+if writer:
+    writer.release()
 cv2.destroyAllWindows()
